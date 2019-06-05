@@ -1,6 +1,8 @@
 # SimpleChat
 Simple Chatting Program (java)
 
+# HOW TO USE?
+# 아래의 내용을 수정해주세요.
 ## Client Compile 방법
  javac ChatClient.java
 
@@ -29,4 +31,4 @@ Simple Chatting Program (java)
 - 2. 클라이언트에서 '/addspam 단어'를 입력하면 해당 <단어>가 서버에 금지어로 추가되도록 하는 기능 구현
 - 3. 금지어 파일 관리 기능 구현 - 서버를 시작하면 금지어 리스트는 특정 파일에서 불러오고, 서버가 종료되면 새로 추가된 금지어를 포함한 현재 리스트가 파일에 저장되도록 기능 구현
 
-> Q&A: 21400564@handong.edu || KakaoTalk open chat
+> Q&A: 21400564@handong.edu
