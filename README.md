@@ -1,8 +1,6 @@
 # SimpleChat
 Simple Chatting Program (java)
 
-# HOW TO USE?
-# 아래의 내용을 수정해주세요.
 ## Client Compile 방법
  javac ChatClient.java
 
@@ -13,9 +11,11 @@ Simple Chatting Program (java)
 ### Terminal #1
   java ChatServer
 ### Terminal #2
-  java ChatClient \<username1> \<server--ip-address>
+  java ChatClient
+  > 실행시 username과 ip address 입력하도록 나옴
 ### Terminal #3
-  java ChatClient \<username2> \<server--ip-address>
+  java ChatClient
+  > 실행시 username과 ip address 입력하도록 나옴
 
 ## Lab5: Customizing 1
 - 1. ChatClient 실행 구문 변경하기
