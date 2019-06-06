@@ -21,7 +21,7 @@ public class ChatServer_new {
 				//서버 프로그램의 스레드인 chatthread 생성  
 				ChatThread chatthread = new ChatThread(sock, hm);
 				chatthread.start();
-			} // while
+			}
 		}catch(Exception e){	
 			System.out.println(e);
 		}
