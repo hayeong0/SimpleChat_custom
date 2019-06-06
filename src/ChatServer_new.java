@@ -10,15 +10,15 @@ public class ChatServer_new {
 			//ServerSocket 인스턴스 생성, 100001포트로 설정  
 			ServerSocket server = new ServerSocket(10001); 
 			System.out.println("Waiting connection...");
-			
+
 			/* 클라이언트 보낸 문자열을 접속한 모든 클라이언트에게 전송하기 위
 			   스레드 간 OutputStream(송신)을 공유하기 위한 HashMap */
 			HashMap hm = new HashMap();	
-			
+
 			while(true){
 				//클라이언트의 접속을 확인하고, 소켓 인스턴스 생성  
 				Socket sock = server.accept();	
-				//서버 프로그램의 스레드인 chatthread 생성  
+				//서버 프로그램의 스레드인 chatThread 생성  
 				ChatThread chatthread = new ChatThread(sock, hm);
 				chatthread.start();
 			}
@@ -38,6 +38,7 @@ class ChatThread extends Thread{
 	private BufferedReader br;
 	private HashMap hm;	
 	private boolean initFlag = false;
+	ArrayList<String> spamList = new ArrayList<String>();
 	public ChatThread(Socket sock, HashMap hm){
 		this.sock = sock;
 		this.hm = hm;
@@ -47,9 +48,9 @@ class ChatThread extends Thread{
 			PrintWriter pw = new PrintWriter(new OutputStreamWriter(sock.getOutputStream()));
 			//클라이언트로부터 데이터를 읽어오기 위함  
 			br = new BufferedReader(new InputStreamReader(sock.getInputStream()));
-			 
+
 			id = br.readLine();
-			
+
 			broadcast(id + " entered.");
 			System.out.println("[Server] User (" + id + ") entered.");
 			//여러 스레드가 공유하는 해쉬 맵 동기화  
@@ -63,7 +64,7 @@ class ChatThread extends Thread{
 			System.out.println(ex);
 		}
 	} // constructor
-	
+
 	/* 클라이언트로부터 수신받은  데이터를 클라이언트에게 송신 */
 	public void run(){
 		PrintWriter pw = null;
@@ -82,13 +83,21 @@ class ChatThread extends Thread{
 				/* 귓속말 기능 */
 				if(line.indexOf("/to ") == 0) 
 					sendmsg(line);
-				
+
 				/* 현재 접속한 사용자 목록 보여주기 */
 				if(line.equals("/userlist")) 
 					send_userlist();
 				
-				else broadcast(id + " : " + line);
+				/* 금지어 추가 기능 */
+				if(line.indexOf("/addspam ") == 0) 
+					add_spam(line);
 				
+				/* 금지어 목록 출력 기능 */
+				if(line.equals("/spamlist"))
+					print_spamlist();
+				
+				else broadcast(id + " : " + line);
+
 			}//while
 		}catch(Exception ex){
 			System.out.println(ex);
@@ -103,30 +112,19 @@ class ChatThread extends Thread{
 					sock.close();	//나간 클라이언트 객체 close  
 			}catch(Exception ex){}
 		}
-		
-		
+
 	} // run
-	
-	/* 금지어 경고 기능 */ 
-	public boolean forbidden(String msg) {
-		if(msg.contains("oss")) return true;
-		if(msg.contains("ds")) return true;
-		if(msg.contains("logic design")) return true;
-		if(msg.contains("java")) return true;
-		if(msg.contains("bad")) return true;
-		else return false;
-	}
-	
+
 	/* 귓속말 기능 */
 	public void sendmsg(String msg){
 		String time = curTime();	//current time 
 		int start = msg.indexOf(" ") +1; 	//처음 공백 문자 다음부터  
 		int end = msg.indexOf(" ", start); 	//두번째 공백 문자 전까지 
-		
+
 		if(end != -1){ 
 			String to = msg.substring(start, end);	//ID
 			String msg2 = msg.substring(end+1);	//message
-			Object obj = hm.get(to);	//HashMap에서 ID로 출력 스트림을 얻어
+			Object obj = hm.get(to);	//HashMap에서 ID로 출력 스트림을 얻어옴 
 			if(obj != null){
 				PrintWriter pw = (PrintWriter)obj;
 				pw.println(time);
@@ -135,23 +133,15 @@ class ChatThread extends Thread{
 			}
 		}
 	} // sendmsg
-	
-	/* 현재 시각 출력 메소드 */
-	public String curTime() {
-		long time = System.currentTimeMillis(); 
-		SimpleDateFormat curtime = new SimpleDateFormat("[aaa] hh:mm");
-		String str = curtime.format(new Date(time));
-		return str;
-	}
-	
+
 	/* Broadcasting */
 	public void broadcast(String msg){
 		String time = curTime();
-		
+
 		synchronized(hm){
 			Set<String> set = hm.keySet();
 			Iterator<String> iterator = set.iterator();
-			
+
 			while(iterator.hasNext()){
 				String key = (String)iterator.next();
 				if(id != key) {
@@ -163,6 +153,24 @@ class ChatThread extends Thread{
 			}
 		}
 	} // broadcast
+
+	/* 현재 시각 출력 기능  */
+	public String curTime() {
+		long time = System.currentTimeMillis(); 
+		SimpleDateFormat curtime = new SimpleDateFormat("[aaa] hh:mm");
+		String str = curtime.format(new Date(time));
+		return str;
+	}
+
+	/* 금지어 경고 기능 */ 
+	public boolean forbidden(String msg) {
+		if(msg.contains("oss")) return true;
+		if(msg.contains("ds")) return true;
+		if(msg.contains("logic design")) return true;
+		if(msg.contains("java")) return true;
+		if(msg.contains("bad")) return true;
+		else return false;
+	}
 	
 	/* 사용자 목록 보여주기 */
 	public void send_userlist() {
@@ -171,5 +179,61 @@ class ChatThread extends Thread{
 		pw.println("Total : " + hm.size());
 		pw.flush();
 	} //send_userlist
+	
+	
+	/* 금지어 등록 기능 */
+	public void add_spam(String msg) {
+		int start = msg.indexOf(" ") +1;
+		int end = msg.indexOf(" ", start);
+		
+		if(end != -1) {
+			String spam = msg.substring(end+1);
+			spamList.add(spam);
+		}
+		save_spamList();
+		PrintWriter pw = (PrintWriter)hm.get(id);
+		pw.println("Register forbidden word!");
+		pw.flush();
+	}
+	
+	/* 금지어 목록 출력 기능 */ 
+	public void print_spamlist() {
+		BufferedReader br = null;
+		try {
+			br = new BufferedReader(new FileReader("spamList.txt"));
+			String line;
+			while ((line = br.readLine()) != null) {
+				System.out.println(line);
+			}
+		} catch (FileNotFoundException e) {
+			e.printStackTrace();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			if (br != null)
+				try {
+					br.close();
+				} catch (IOException e) {}
+		}
+	}
+	
+	/* 금지어 파일 관리 기능 */
+	public void save_spamList() { 
+		BufferedWriter bw = null;
+		System.out.println("Save SpamList . . .");
+		try {
+			bw = new BufferedWriter(new FileWriter("spamList.txt", true));
+			for (String str : spamList) {
+				bw.write(str.toString());
+			}
+			bw.flush();
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			if (bw != null)
+				try {
+					bw.close();
+				} catch (IOException e) {}
+		}
+	}
 }
-
