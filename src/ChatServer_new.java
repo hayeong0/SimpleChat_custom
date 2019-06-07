@@ -4,16 +4,17 @@ import java.util.*;
 import java.text.SimpleDateFormat;
 
 public class ChatServer_new {
-
-	public static void main(String[] args) {
+    	public static void main(String[] args) {
 		try{
-			//ServerSocket 인스턴스 생성, 100001포트로 설정  
+			//ServerSocket 인스턴스 생성, 10001포트로 설정  
 			ServerSocket server = new ServerSocket(10001); 
 			System.out.println("Waiting connection...");
 
-			/* 클라이언트 보낸 문자열을 접속한 모든 클라이언트에게 전송하기 위
+			/* 클라이언트 보낸 문자열을 접속한 모든 클라이언트에게 전송하기 위해  
 			   스레드 간 OutputStream(송신)을 공유하기 위한 HashMap */
 			HashMap hm = new HashMap();	
+			/* 서버 시작하면 금지어 특정 파일에서 불러오기 */
+			read_file();
 
 			while(true){
 				//클라이언트의 접속을 확인하고, 소켓 인스턴스 생성  
@@ -26,6 +27,31 @@ public class ChatServer_new {
 			System.out.println(e);
 		}
 	} // main
+    	
+    /* 특정 파일에서 읽어오기  */
+	public static void read_file() {
+		ArrayList<String> spamList = null;
+		BufferedReader br = null;
+		
+		try {
+			br = new BufferedReader(new FileReader("spamList.txt"));
+			String line;
+			if(br != null) {
+				spamList = new ArrayList<String>();
+			}
+			while ((line = br.readLine()) != null) {
+				spamList.add(line);
+			}
+			br.close();
+		}catch(IOException e) {
+			System.err.println(e);
+		}finally {
+			if (br != null)
+				try {
+					br.close();
+				} catch (IOException e) {}
+			}
+	}//read_file
 }
 
 /* ChatThrad > Server의 일을 대신 해줌. 
@@ -39,6 +65,8 @@ class ChatThread extends Thread{
 	private HashMap hm;	
 	private boolean initFlag = false;
 	ArrayList<String> spamList = new ArrayList<String>();
+	Iterator<String> it = spamList.iterator();
+	
 	public ChatThread(Socket sock, HashMap hm){
 		this.sock = sock;
 		this.hm = hm;
@@ -71,34 +99,49 @@ class ChatThread extends Thread{
 		try{
 			String line = null; 
 			while((line = br.readLine()) != null){
-				/* 금지어 필터링 기능 */
-				if(forbidden(line)) {
+				/* 나가기 기능 */
+				if(line.equals("/quit"))
+					break;
+				
+				/* 귓속말 기능 */
+				if(line.indexOf("/to ") == 0) {
+					sendmsg(line);
+				}
+				
+				/* 현재 접속한 사용자 목록 보여주기 */
+				else if(line.equals("/userlist")) {
+					send_userlist();
+				}
+				
+				/* 금지어 추가 기능 */
+				else if(line.indexOf("/addspam ") == 0) {
+					add_spam(line);
+				}
+
+				/* 금지어 필터링 기능 (Lab6) */
+				else if(forbidden(line)) {
+					pw = (PrintWriter)hm.get(id);
+					pw.println("Forbidden command!!");
+					pw.flush();
+                }
+				
+				/* 금지어 필터링 기능 (Lab7) */
+				else if(spamList.contains(line)) {
 					pw = (PrintWriter)hm.get(id);
 					pw.println("Forbidden command!!");
 					pw.flush();
 				}
-				/* 나가기 기능 */
-				if(line.equals("/quit"))
-					break;
-				/* 귓속말 기능 */
-				if(line.indexOf("/to ") == 0) 
-					sendmsg(line);
-
-				/* 현재 접속한 사용자 목록 보여주기 */
-				if(line.equals("/userlist")) 
-					send_userlist();
-				
-				/* 금지어 추가 기능 */
-				if(line.indexOf("/addspam ") == 0) 
-					add_spam(line);
 				
 				/* 금지어 목록 출력 기능 */
-				if(line.equals("/spamlist"))
+				else if(line.equals("/spamlist")) {
 					print_spamlist();
+				}
 				
-				else broadcast(id + " : " + line);
-
-			}//while
+				/* broadcasting */
+				else {
+					broadcast(id + " : " + line);
+				}
+			}
 		}catch(Exception ex){
 			System.out.println(ex);
 		}finally{ //클라이언트부터 quit이라는 종료 메시지 수신  
@@ -106,7 +149,7 @@ class ChatThread extends Thread{
 				hm.remove(id);	//종료 메시지 보낸 클라이언트의 정보 HashMap에서 remove
 			}
 			broadcast(id + " exited.");	//broadcast로 접속 종료 알림  
-			System.out.println(id + "exited."); //server에도 출력  
+			System.out.println(id + " exited."); //server에도 출력  
 			try{
 				if(sock != null)
 					sock.close();	//나간 클라이언트 객체 close  
@@ -114,7 +157,7 @@ class ChatThread extends Thread{
 		}
 
 	} // run
-
+	
 	/* 귓속말 기능 */
 	public void sendmsg(String msg){
 		String time = curTime();	//current time 
@@ -128,7 +171,7 @@ class ChatThread extends Thread{
 			if(obj != null){
 				PrintWriter pw = (PrintWriter)obj;
 				pw.println(time);
-				pw.println(id + " whisphered. : " + msg2);
+				pw.println(id + " whisphered : " + msg2);
 				pw.flush();
 			}
 		}
@@ -160,18 +203,18 @@ class ChatThread extends Thread{
 		SimpleDateFormat curtime = new SimpleDateFormat("[aaa] hh:mm");
 		String str = curtime.format(new Date(time));
 		return str;
-	}
+	}//curtime
 
 	/* 금지어 경고 기능 */ 
 	public boolean forbidden(String msg) {
 		if(msg.contains("oss")) return true;
-		if(msg.contains("ds")) return true;
-		if(msg.contains("logic design")) return true;
+		if(msg.contains("carrot")) return true;
+		if(msg.contains("mango")) return true;
 		if(msg.contains("java")) return true;
 		if(msg.contains("bad")) return true;
 		else return false;
-	}
-	
+	}//forbidden
+    
 	/* 사용자 목록 보여주기 */
 	public void send_userlist() {
 		PrintWriter pw = (PrintWriter)hm.get(id);
@@ -183,18 +226,18 @@ class ChatThread extends Thread{
 	
 	/* 금지어 등록 기능 */
 	public void add_spam(String msg) {
-		int start = msg.indexOf(" ") +1;
-		int end = msg.indexOf(" ", start);
+		int word = msg.indexOf(" ") + 1;
 		
-		if(end != -1) {
-			String spam = msg.substring(end+1);
-			spamList.add(spam);
-		}
-		save_spamList();
+		String spam = msg.substring(word);
+		spamList.add(spam);
+			
+		save_spamlist(spam);
+		
 		PrintWriter pw = (PrintWriter)hm.get(id);
-		pw.println("Register forbidden word!");
+		pw.println("Register forbidden word.");
 		pw.flush();
-	}
+		
+	}//add_spam
 	
 	/* 금지어 목록 출력 기능 */ 
 	public void print_spamlist() {
@@ -203,7 +246,9 @@ class ChatThread extends Thread{
 			br = new BufferedReader(new FileReader("spamList.txt"));
 			String line;
 			while ((line = br.readLine()) != null) {
-				System.out.println(line);
+				PrintWriter pw = (PrintWriter)hm.get(id);
+				pw.println(line);
+				pw.flush();
 			}
 		} catch (FileNotFoundException e) {
 			e.printStackTrace();
@@ -215,25 +260,26 @@ class ChatThread extends Thread{
 					br.close();
 				} catch (IOException e) {}
 		}
-	}
+	}//print_spamlist
 	
 	/* 금지어 파일 관리 기능 */
-	public void save_spamList() { 
-		BufferedWriter bw = null;
-		System.out.println("Save SpamList . . .");
+	public void save_spamlist(String spam) { 
+		BufferedWriter fbw = null;
+		System.out.println("Save SpamList");
 		try {
-			bw = new BufferedWriter(new FileWriter("spamList.txt", true));
-			for (String str : spamList) {
-				bw.write(str.toString());
-			}
-			bw.flush();
+			fbw = new BufferedWriter(new FileWriter("spamList.txt", true));
+			fbw.write(spam);;
+			fbw.newLine();
+			fbw.flush();
 		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
-			if (bw != null)
+			if (fbw != null)
 				try {
-					bw.close();
+					fbw.close();
 				} catch (IOException e) {}
 		}
-	}
+	}//sava_spamlist
 }
+
+	
