@@ -28,7 +28,7 @@ public class ChatServer_new {
 		}
 	} // main
     	
-    /* 특정 파일에서 읽어오기  */
+    /*특정 파일에서 읽어오기  */
 	public static void read_file() {
 		ArrayList<String> spamList = null;
 		BufferedReader br = null;
@@ -78,7 +78,14 @@ class ChatThread extends Thread{
 			br = new BufferedReader(new InputStreamReader(sock.getInputStream()));
 
 			id = br.readLine();
-
+			
+			/* 중복되는 아이디 입력시 서버에 알려주고 해당 접속 차단시 */
+			if(hm.containsKey(id)) {
+				System.out.println(id + " is Already exist ID");
+				System.out.println("You can not access this ID.");
+				System.exit(0);
+			}
+			
 			broadcast(id + " entered.");
 			System.out.println("[Server] User (" + id + ") entered.");
 			//여러 스레드가 공유하는 해쉬 맵 동기화  
