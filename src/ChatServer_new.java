@@ -12,15 +12,16 @@ public class ChatServer_new {
 
 			/* 클라이언트 보낸 문자열을 접속한 모든 클라이언트에게 전송하기 위해  
 			   스레드 간 OutputStream(송신)을 공유하기 위한 HashMap */
-			HashMap hm = new HashMap();	
+			HashMap hm = new HashMap();
+			HashSet <String> set = new HashSet <String> ();
 			/* 서버 시작하면 금지어 특정 파일에서 불러오기 */
-			read_file();
+			read_file(set);
 
 			while(true){
 				//클라이언트의 접속을 확인하고, 소켓 인스턴스 생성  
 				Socket sock = server.accept();	
 				//서버 프로그램의 스레드인 chatThread 생성  
-				ChatThread chatthread = new ChatThread(sock, hm);
+				ChatThread chatthread = new ChatThread(sock, hm, set);
 				chatthread.start();
 			}
 		}catch(Exception e){	
@@ -29,19 +30,18 @@ public class ChatServer_new {
 	} // main
     	
     /*특정 파일에서 읽어오기  */
-	public static void read_file() {
-		ArrayList<String> spamList = null;
+	public static void read_file(HashSet<String> spamset) {
+		
 		BufferedReader br = null;
 		
 		try {
 			br = new BufferedReader(new FileReader("spamList.txt"));
 			String line;
-			if(br != null) {
-				spamList = new ArrayList<String>();
-			}
+			
 			while ((line = br.readLine()) != null) {
-				spamList.add(line);
+				spamset.add(line);
 			}
+			
 			br.close();
 		}catch(IOException e) {
 			System.err.println(e);
@@ -62,32 +62,29 @@ class ChatThread extends Thread{
 	private Socket sock;	//클라이언트와 통신하기 위한 socket 
 	private String id;
 	private BufferedReader br;
+	int ban_count = 0;
 	private HashMap hm;	
 	private boolean initFlag = false;
-	ArrayList<String> spamList = new ArrayList<String>();
-	Iterator<String> it = spamList.iterator();
+	private static HashSet<String> spamset = new HashSet<String>();
 	
-	public ChatThread(Socket sock, HashMap hm){
+	public ChatThread(Socket sock, HashMap hm, HashSet<String> set){
 		this.sock = sock;
 		this.hm = hm;
+		/* 파일에서 읽어온 데이터 넣어주기 */
+		for (String it : set) {
+			spamset.add(it);
+		}
 		try{ 
 			//출력 스트림 객체를 리턴하는 PrintWriter 생성
 			//클라이언트로 메세지를 보낼 수 있음
 			PrintWriter pw = new PrintWriter(new OutputStreamWriter(sock.getOutputStream()));
 			//클라이언트로부터 데이터를 읽어오기 위함  
 			br = new BufferedReader(new InputStreamReader(sock.getInputStream()));
-
 			id = br.readLine();
-			
-			/* 중복되는 아이디 입력시 서버에 알려주고 해당 접속 차단시 */
-			if(hm.containsKey(id)) {
-				System.out.println(id + " is Already exist ID");
-				System.out.println("You can not access this ID.");
-				System.exit(0);
-			}
 			
 			broadcast(id + " entered.");
 			System.out.println("[Server] User (" + id + ") entered.");
+			
 			//여러 스레드가 공유하는 해쉬 맵 동기화  
 			synchronized(hm){	
 				/* 사용자의 아이디를 key로, 출력 스트림을 value로 저장함
@@ -104,14 +101,31 @@ class ChatThread extends Thread{
 	public void run(){
 		PrintWriter pw = null;
 		try{
+			
 			String line = null; 
 			while((line = br.readLine()) != null){
+				
 				/* 나가기 기능 */
 				if(line.equals("/quit"))
 					break;
 				
+				/* 금지어 필터링 (Lab7) */
+				if(forbidden_check(line)) {
+					pw = (PrintWriter)hm.get(id);
+					pw.println("Forbidden command!!");
+					pw.flush();
+					ban_count++;
+					
+					/*금지어를 5번 입력하면 강제 퇴장 */
+					if(ban_count == 4) {
+						pw.println("You entered the prohibited word 5 times.");
+						pw.println("== Block ==");
+						pw.flush();
+						pw.close();
+					}
+				}
 				/* 귓속말 기능 */
-				if(line.indexOf("/to ") == 0) {
+				else if(line.indexOf("/to ") == 0) {
 					sendmsg(line);
 				}
 				
@@ -132,18 +146,10 @@ class ChatThread extends Thread{
 					pw.flush();
                 }
 				
-				/* 금지어 필터링 기능 (Lab7) */
-				else if(spamList.contains(line)) {
-					pw = (PrintWriter)hm.get(id);
-					pw.println("Forbidden command!!");
-					pw.flush();
-				}
-				
 				/* 금지어 목록 출력 기능 */
 				else if(line.equals("/spamlist")) {
 					print_spamlist();
 				}
-				
 				/* broadcasting */
 				else {
 					broadcast(id + " : " + line);
@@ -219,9 +225,18 @@ class ChatThread extends Thread{
 		if(msg.contains("mango")) return true;
 		if(msg.contains("java")) return true;
 		if(msg.contains("bad")) return true;
+
 		else return false;
 	}//forbidden
-    
+	
+	/* 금지어 경고 기능 (Lab 7) */
+	public boolean forbidden_check(String msg) {
+		for(String str : spamset) {
+			if(msg.contains(str)) return true;
+		}
+		return false;
+	}
+	
 	/* 사용자 목록 보여주기 */
 	public void send_userlist() {
 		PrintWriter pw = (PrintWriter)hm.get(id);
@@ -230,18 +245,17 @@ class ChatThread extends Thread{
 		pw.flush();
 	} //send_userlist
 	
-	
 	/* 금지어 등록 기능 */
 	public void add_spam(String msg) {
 		int word = msg.indexOf(" ") + 1;
-		
+
 		String spam = msg.substring(word);
-		spamList.add(spam);
-			
+		spamset.add(spam);
+		
 		save_spamlist(spam);
 		
 		PrintWriter pw = (PrintWriter)hm.get(id);
-		pw.println("Register forbidden word.");
+		pw.println("Resigster forbidden word");
 		pw.flush();
 		
 	}//add_spam
@@ -251,15 +265,13 @@ class ChatThread extends Thread{
 		BufferedReader br = null;
 		try {
 			br = new BufferedReader(new FileReader("spamList.txt"));
-			String line;
-			while ((line = br.readLine()) != null) {
+			
+			for(String x : spamset) {
 				PrintWriter pw = (PrintWriter)hm.get(id);
-				pw.println(line);
+				pw.println(x);
 				pw.flush();
 			}
 		} catch (FileNotFoundException e) {
-			e.printStackTrace();
-		} catch (IOException e) {
 			e.printStackTrace();
 		} finally {
 			if (br != null)
