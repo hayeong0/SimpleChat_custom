@@ -95,6 +95,13 @@ Simple Chatting Program (java)
 - 2. 클라이언트가 입력한 username이 중복될 경우, 중복되었다는 메시지 전해주고, 
 중복되지 않은 아이디 입력할 때까지 받기
 > 클라이언트 1 (choihayeong 이라는 username으로 들어옴. 중복 X)
+<img src="https://user-images.githubusercontent.com/47182864/59203730-24521000-8bda-11e9-803e-7286509e2acc.png">
+
 > 클라이언트 2 (hayeong 이라는 username으로 들어옴 . 중복 X)
+<img src="https://user-images.githubusercontent.com/47182864/59203740-2916c400-8bda-11e9-98ba-d3575c02c718.png">
+
 > 클라이언트 3 (hayeong이라는 이름으로 접속 시도 -> 이미 있다는 경고 -> 재입력 -> 접속)
+<img src="https://user-images.githubusercontent.com/47182864/59203743-2caa4b00-8bda-11e9-8b95-c8e83496b2f2.png">
+
 > 서버 화면 
+<img src="https://user-images.githubusercontent.com/47182864/59203742-2c11b480-8bda-11e9-9bfb-3bfc2fe10f08.png">
