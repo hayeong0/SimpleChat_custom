@@ -2,16 +2,16 @@
 Simple Chatting Program (java)
 
 ## Client Compile 방법
- javac ChatClient.java
+ javac ChatClient_new.java
 
 ## Server Compile 방법
- javac ChatServer.java
+ javac ChatServer_new.java
 
 ## Test 방법
 ### Terminal #1
-  java ChatServer
+  java ChatServer_new
 ### Terminal #2
-  java ChatClient
+  java ChatClient_new
   > 실행시 username과 ip address 입력하도록 나옴
 ### Terminal #3
   java ChatClient
