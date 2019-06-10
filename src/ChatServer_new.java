@@ -20,7 +20,7 @@ public class ChatServer_new {
 			while(true){
 				//클라이언트의 접속을 확인하고, 소켓 인스턴스 생성  
 				Socket sock = server.accept();	
-				//서버 프로그램의 스레드인 chatThread 생성  
+				//while문 내에서 생성되는 스레드는 하나의 해쉬맵 객체를 공유하는 것 
 				ChatThread chatthread = new ChatThread(sock, hm, set);
 				chatthread.start();
 			}
@@ -29,9 +29,8 @@ public class ChatServer_new {
 		}
 	} // main
     	
-    /*특정 파일에서 읽어오기  */
+    /* 특정 파일에서 읽어오기  */
 	public static void read_file(HashSet<String> spamset) {
-		
 		BufferedReader br = null;
 		
 		try {
@@ -80,22 +79,51 @@ class ChatThread extends Thread{
 			PrintWriter pw = new PrintWriter(new OutputStreamWriter(sock.getOutputStream()));
 			//클라이언트로부터 데이터를 읽어오기 위함  
 			br = new BufferedReader(new InputStreamReader(sock.getInputStream()));
-			id = br.readLine();
+			boolean login = true;
+			
+			/* 중복된 username 체크 기능 */
+			while(true) {
+				id = br.readLine();	//클라이언트가 보낸 data
+				Iterator<String> keys = hm.keySet().iterator();
+				
+				//중복된 user name 체크  
+				while(keys.hasNext()) {	
+					//중복된 user name인 경우   
+					if(id.equals(keys.next())) {
+						pw.println("Already exist!"); //클라이언트에게 보내줌  
+						System.out.println("Already exist!"); //서버에 출력  
+						pw.flush();
+						login = false;
+						break;
+					}
+					else login = true;
+				}
+				if(login) { //첫번째 들어오는 유저일 경우를 위해 따로 처리 + 중복아닌 user name 
+					pw.println("You can use this username :)"); 
+					pw.flush();
+					System.out.println("You can use this username :)");
+					break;
+				}
+			}
 			
 			broadcast(id + " entered.");
 			System.out.println("[Server] User (" + id + ") entered.");
 			
-			//여러 스레드가 공유하는 해쉬 맵 동기화  
+			/* 여러스레드가 해쉬맵을 공유하기 때문에
+			 * 해쉬맵에 있는 자료 삭제, 수정등이 동시에 발생할 수 있기 때문  
+			 */
 			synchronized(hm){	
 				/* 사용자의 아이디를 key로, 출력 스트림을 value로 저장함
 				  모든 클라이언트에 의해 공유된 메시지 broadcast하기 위해 출력 스트림을 해쉬 맵에 저장 */
 				hm.put(this.id, pw);
+				
 			}
 			initFlag = true;
 		}catch(Exception ex){
 			System.out.println(ex);
 		}
 	} // constructor
+
 
 	/* 클라이언트로부터 수신받은  데이터를 클라이언트에게 송신 */
 	public void run(){

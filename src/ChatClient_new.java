@@ -3,34 +3,16 @@ import java.io.*;
 import java.util.*;
 
 public class ChatClient_new {
-
 	static String username;
 	static String ip;
 	
-	ChatClient_new(String username, String ip){
-		this.username = username;
-		this.ip = ip;
-	}
-	
-	public static void main(String[] args) { 
-		if(args.length != 2){	/* 입력시 */
-			System.out.println("Usage : java ChatClient");	
-			//.exit(1);
-			System.out.println("your name >> ");
-			Scanner sc = new Scanner(System.in);
-			username = sc.next();
-			System.out.println("server ip >> ");
-			ip = sc.next(); 
-		}
-		else {
-			username = args[0];
-			ip = args[1];
-		}
-		ChatClient_new chatClient = new ChatClient_new(username, ip);
-		chatClient.start();
-	}//main
 
+	public static void main(String[] args) { 
+		ChatClient_new chat = new ChatClient_new();
+		chat.start();
+	}//main
 	
+
 	public void start(){
 		Socket sock = null;	
 		BufferedReader br = null;	//파일 read
@@ -46,11 +28,30 @@ public class ChatClient_new {
 			br = new BufferedReader(new InputStreamReader(sock.getInputStream()));
 			//서버가 보낸 데이터 출력
 			BufferedReader keyboard = new BufferedReader(new InputStreamReader(System.in));
-			
-	
-			// send username
-			pw.println(username);
-			pw.flush();
+		
+				System.out.println("Usage : java ChatClient");	
+				Scanner sc = new Scanner(System.in);
+				boolean done = true;
+				String msg = "";
+				
+				while(done) {
+					System.out.println("your name >> ");
+					username = sc.nextLine();
+					
+					System.out.println("server ip >> ");
+					ip = sc.nextLine(); 
+					
+					// send username
+					pw.println(username);
+					pw.flush();
+					
+					msg = br.readLine();
+					System.out.println(msg);
+					
+					if(msg.equals("Already exist!")) done = true;
+					else done = false;
+				}
+					
 			//inputThread를 start한다
 			InputThread it = new InputThread(sock, br);
 			it.start();
@@ -59,8 +60,8 @@ public class ChatClient_new {
 			while((line = keyboard.readLine()) != null){
 				//send message  
 				pw.println(line);
-	
 				pw.flush();
+				
 				//입력이 quit이면, while문을 빠져나간다
 				if(line.equals("/quit")){
 					endflag = true;
@@ -101,10 +102,13 @@ class InputThread extends Thread{
 	}
 	public void run(){
 		try{
-			String line = null;
-			while((line = br.readLine()) != null){
-				System.out.println(line);
-			}
+            String line = null;
+            while((line = br.readLine()) != null){
+                    System.out.println(line);
+            }
+            
+   
+			
 		}catch(Exception ex){
 		}finally{
 			try{
@@ -117,6 +121,8 @@ class InputThread extends Thread{
 			}catch(Exception ex){}
 		}
 	} // InputThread
+	
+	
 }
 
 
